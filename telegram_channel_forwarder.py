@@ -7,6 +7,24 @@ from datetime import datetime, time, timedelta
 import pytz  # Import pytz for timezone handling
 from dotenv import load_dotenv  # Import load_dotenv
 
+# --- CRITICAL PATH FIX FOR REPLIT ---
+# Explicitly add Replit's site-packages directory to sys.path
+# This ensures Python can find installed libraries like Telethon.
+replit_site_packages_path = (
+    "/home/runner/workspace/.pythonlibs/lib/python3.12/site-packages"
+)
+if replit_site_packages_path not in sys.path:
+    sys.path.insert(0, replit_site_packages_path)
+# --- END CRITICAL PATH FIX ---
+
+
+# --- DIAGNOSTIC PRINT ---
+# Print sys.path at the very beginning to see where Python is looking for modules
+logger = logging.getLogger(__name__)  # Initialize logger early for this diagnostic
+logger.debug(f"sys.path at script start (after path fix): {sys.path}")
+# --- END DIAGNOSTIC PRINT ---
+
+
 # Load environment variables from .env file at the very beginning
 # This is primarily for local development. Replit Secrets handle this online.
 load_dotenv()
@@ -18,7 +36,7 @@ logging.basicConfig(
     level=logging.DEBUG,  # Changed to DEBUG for more verbose output
     handlers=[logging.StreamHandler(sys.stdout)],  # Ensure output goes to console
 )
-logger = logging.getLogger(__name__)
+# logger is already initialized above
 
 # Define the timezone for Uganda (UTC+3)
 UGANDA_TIMEZONE = pytz.timezone(
@@ -110,6 +128,19 @@ except ValueError:
 # Initialize Telethon client (global)
 # Use a direct path for the sessions folder within Replit's root
 session_file_path = os.path.join(replit_root_dir, "sessions", "telethon_session")
+from telethon import TelegramClient, events  # Moved import here for diagnostic purposes
+from telethon.tl.types import (
+    MessageMediaPhoto,
+    MessageMediaDocument,
+)  # Moved import here for diagnostic purposes
+from telethon.errors import (
+    SessionPasswordNeededError,
+    FloodWaitError,
+    AuthKeyUnregisteredError,
+    ChannelPrivateError,
+    UserNotParticipantError,
+)  # Moved import here for diagnostic purposes
+
 client = TelegramClient(session_file_path, API_ID, API_HASH)
 logger.debug(f"Telethon client initialized with session file: {session_file_path}")
 
