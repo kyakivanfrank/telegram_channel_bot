@@ -302,7 +302,6 @@ if __name__ == "__main__":
             f"CRITICAL APPLICATION ERROR: Telethon bot encountered an unhandled exception during startup or main execution: {e}",
             exc_info=True,
         )
-        sys.exit(1)  # Exit with an error code if critical error
     finally:
         # Ensure client is disconnected even if main() exits via sys.exit(0)
         # This block might not always execute if sys.exit is called earlier,
