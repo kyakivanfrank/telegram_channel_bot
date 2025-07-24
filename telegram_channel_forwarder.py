@@ -5,16 +5,11 @@ import sys
 import asyncio
 from datetime import datetime, time, timedelta
 import pytz  # Import pytz for timezone handling
+from dotenv import load_dotenv  # Import load_dotenv
 
-from telethon import TelegramClient, events
-from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
-from telethon.errors import (
-    SessionPasswordNeededError,
-    FloodWaitError,
-    AuthKeyUnregisteredError,
-    ChannelPrivateError,
-    UserNotParticipantError,
-)
+# Load environment variables from .env file at the very beginning
+# This is primarily for local development. Replit Secrets handle this online.
+load_dotenv()
 
 # Configure logging to output ALL messages (DEBUG level) for debugging
 # Also, ensure it prints to console
@@ -42,13 +37,12 @@ client = None
 # Load non-sensitive configurations from proj_config.json
 CONFIG = {}
 try:
-    script_path = os.path.realpath(__file__)
-    script_dir = os.path.dirname(script_path)
+    # Use a more direct path for Replit's root directory
+    # Replit's workspace root is usually '/home/runner/workspace/'
+    replit_root_dir = "/home/runner/workspace/"
 
-    config_path = os.path.join(script_dir, "proj_config.json")
+    config_path = os.path.join(replit_root_dir, "proj_config.json")
 
-    logger.debug(f"Calculated script_path: {script_path}")
-    logger.debug(f"Calculated script_dir: {script_dir}")
     logger.debug(f"Attempting to load config from: {config_path}")
 
     with open(config_path, "r") as f:
@@ -56,7 +50,7 @@ try:
     logger.info("Configuration loaded from proj_config.json.")
 except FileNotFoundError:
     logger.critical(
-        f"FATAL ERROR: proj_config.json not found at {config_path}. Please ensure it's in the root directory and contains necessary configurations."
+        f"FATAL ERROR: proj_config.json not found at {config_path}. Please ensure it's in the root directory of your Replit project."
     )
     sys.exit(1)
 except json.JSONDecodeError:
@@ -92,7 +86,7 @@ SOURCE_CHANNEL_USERNAMES = CONFIG.get("source_channels", [])
 # Validate essential configurations (both env vars and from config file)
 if not all([API_ID, API_HASH, PHONE_NUMBER, TARGET_CHANNEL_USERNAME]):
     logger.critical(
-        "FATAL ERROR: Critical Telethon configurations (TELETHON_API_ID, TELETHON_API_HASH, TELETHON_PHONE_NUMBER, TELETHON_TARGET_CHANNEL) are missing or empty in environment variables. Please set them securely."
+        "FATAL ERROR: Critical Telethon configurations (TELETHON_API_ID, TELETHON_API_HASH, TELETHON_PHONE_NUMBER, TELETHON_TARGET_CHANNEL) are missing or empty in environment variables. Please set them securely in Replit Secrets."
     )
     sys.exit(1)
 
@@ -114,7 +108,8 @@ except ValueError:
 
 
 # Initialize Telethon client (global)
-session_file_path = os.path.join(script_dir, "sessions", "telethon_session")
+# Use a direct path for the sessions folder within Replit's root
+session_file_path = os.path.join(replit_root_dir, "sessions", "telethon_session")
 client = TelegramClient(session_file_path, API_ID, API_HASH)
 logger.debug(f"Telethon client initialized with session file: {session_file_path}")
 
@@ -295,7 +290,8 @@ async def main():
 if __name__ == "__main__":
     try:
         # Create the sessions directory if it doesn't exist
-        sessions_dir = os.path.join(script_dir, "sessions")
+        # Use a direct path for the sessions folder within Replit's root
+        sessions_dir = os.path.join(replit_root_dir, "sessions")
         if not os.path.exists(sessions_dir):
             os.makedirs(sessions_dir)
             logger.info(f"Created sessions directory: {sessions_dir}")
