@@ -39,6 +39,7 @@ OPERATION_DURATION_HOURS = (
 client = None
 
 # --- Configuration Loading ---
+# Load non-sensitive configurations from proj_config.json
 CONFIG = {}
 try:
     script_path = os.path.realpath(__file__)
@@ -76,27 +77,41 @@ except Exception as e:
     sys.exit(1)
 
 
-API_ID = CONFIG.get("api_id")
-API_HASH = CONFIG.get("api_hash")
-PHONE_NUMBER = CONFIG.get("phone_number")
-TARGET_CHANNEL_USERNAME = CONFIG.get("target_channel")
+# Load sensitive configurations from environment variables
+API_ID = os.getenv("TELETHON_API_ID")
+API_HASH = os.getenv("TELETHON_API_HASH")
+PHONE_NUMBER = os.getenv("TELETHON_PHONE_NUMBER")
+TARGET_CHANNEL_USERNAME = os.getenv(
+    "TELETHON_TARGET_CHANNEL"
+)  # New env variable for target channel
+
+# Load source channels from proj_config.json
 SOURCE_CHANNEL_USERNAMES = CONFIG.get("source_channels", [])
 
-# Validate essential configurations
-if not all(
-    [API_ID, API_HASH, PHONE_NUMBER, TARGET_CHANNEL_USERNAME, SOURCE_CHANNEL_USERNAMES]
-):
+
+# Validate essential configurations (both env vars and from config file)
+if not all([API_ID, API_HASH, PHONE_NUMBER, TARGET_CHANNEL_USERNAME]):
     logger.critical(
-        "FATAL ERROR: Critical Telethon configurations (api_id, api_hash, phone_number, target_channel, source_channels) are missing or empty in proj_config.json. Please check all fields."
+        "FATAL ERROR: Critical Telethon configurations (TELETHON_API_ID, TELETHON_API_HASH, TELETHON_PHONE_NUMBER, TELETHON_TARGET_CHANNEL) are missing or empty in environment variables. Please set them securely."
     )
     sys.exit(1)
 
-# Ensure source_channels is a non-empty list
+# Ensure source_channels is a non-empty list from proj_config.json
 if not isinstance(SOURCE_CHANNEL_USERNAMES, list) or not SOURCE_CHANNEL_USERNAMES:
     logger.critical(
         'FATAL ERROR: \'source_channels\' in proj_config.json must be a non-empty list of channel usernames (e.g., ["@channel1", "@channel2"]).'
     )
     sys.exit(1)
+
+# Convert API_ID to integer
+try:
+    API_ID = int(API_ID)
+except ValueError:
+    logger.critical(
+        "FATAL ERROR: TELETHON_API_ID environment variable must be an integer."
+    )
+    sys.exit(1)
+
 
 # Initialize Telethon client (global)
 session_file_path = os.path.join(script_dir, "sessions", "telethon_session")

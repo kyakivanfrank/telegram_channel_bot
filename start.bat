@@ -51,9 +51,9 @@ python -m pip install --upgrade pip >nul
 echo ✅ Pip upgraded.
 echo.
 
-:: Step 4: Install required Python packages (Telethon only)
+:: Step 4: Install required Python packages (Telethon only):: Step 4: Install required Python packages (Telethon and python-dotenv only)
 echo ==================================================
-echo [STEP 4] Installing Python Dependencies (Telethon only)...
+echo [STEP 4] Installing Python Dependencies (Telethon and python-dotenv only)...
 echo ==================================================
 
 :: Check and install telethon
@@ -62,38 +62,11 @@ python -c "import telethon" >nul 2>&1 || (
   pip install telethon
 )
 
+:: Check and install python-dotenv
+python -c "import dotenv" >nul 2>&1 || (
+  echo 📦 Installing python-dotenv...
+  pip install python-dotenv
+)
+
 echo ✅ Python dependencies checked.
 echo.
-
-:: Step 5: Ensure required folders (only 'sessions' for Telethon)
-echo ==================================================
-echo [STEP 5] Checking Required Folders...
-echo ==================================================
-if not exist "sessions" mkdir sessions
-echo ✅ Folder check complete.
-echo.
-
-:: Step 6: Validate Telegram config
-echo ==================================================
-echo [STEP 6] Validating Telegram Config...
-echo ==================================================
-python helpers\validate_config.py
-IF %ERRORLEVEL% NEQ 0 (
-  echo ❌ Invalid or missing config file.
-  pause
-  exit /b
-)
-echo ✅ Config validation passed.
-echo.
-
-:: Step 7: Launch Telethon Channel Forwarder
-echo ==================================================
-echo [STEP 7] Launching Telethon Channel Forwarder...
-echo ==================================================
-
-start cmd /k "python telegram_channel_forwarder.py"
-
-echo.
-echo ✅ All systems operational. Press any key to close this launcher window...
-pause
-endlocal
