@@ -15,18 +15,19 @@ from telethon.errors import (
     ChatIdInvalidError,
     ChannelPrivateError,
     UserNotParticipantError,
-    AuthKeyError,  # Added for more specific auth error handling
-    SessionPasswordNeededError,  # Added for 2FA handling
-    RPCError,  # General Telethon RPC error
+    AuthKeyError,
+    SessionPasswordNeededError,
+    RPCError,
 )
 
-# --- CRITICAL PATH FIX FOR REPLIT ---
-# Define Replit's root directory dynamically based on current working directory.
-# This makes the script portable to both local environments and Replit.
-replit_root_dir = os.getcwd()
+# --- Import our new config parser ---
+from helpers.config_parser import parse_channel_env_var
 
-# Explicitly add Replit's site-packages directory to sys.path if it exists.
-# This ensures Python can find installed libraries like Telethon in Replit's specific setup.
+# --- CRITICAL PATH FIX FOR REPLIT (Keep for future Replit deployment) ---
+# For local Windows execution, this will effectively be os.getcwd()
+# but this block specifically handles Replit's environment.
+# Assuming bot will be run from its root directory locally or on Replit.
+replit_root_dir = os.getcwd()  # Changed from hardcoded Replit path
 replit_site_packages_path = os.path.join(
     replit_root_dir, ".pythonlibs", "lib", "python3.12", "site-packages"
 )
@@ -37,38 +38,35 @@ if (
     sys.path.insert(0, replit_site_packages_path)
 # --- END CRITICAL PATH FIX ---
 
-# --- LOG FILE REDIRECTION ---
-# Define log file path relative to the dynamic root directory
-LOG_FILE_PATH = os.path.join(replit_root_dir, "bot_log.txt")
 
-# Create log directory if it doesn't exist (harmless if it already does)
-log_dir = os.path.dirname(LOG_FILE_PATH)
+# --- LOG FILE REDIRECTION ---
+# Define log folder and file paths
+LOGS_DIR = os.path.join(replit_root_dir, "logs")
+BOT_LOG_FILE_PATH = os.path.join(LOGS_DIR, "bot_log.txt")
+
+# Ensure the logs directory exists
+log_dir = os.path.dirname(BOT_LOG_FILE_PATH)
 if not os.path.exists(log_dir):
     os.makedirs(log_dir)
 
-# Redirect stdout and stderr to the log file
-# This prevents excessive output being sent back to the cron job,
-# which causes "output too large" errors.
-# 'a' for append, buffering=1 for line-buffering
-sys.stdout = open(LOG_FILE_PATH, "a", buffering=1, encoding="utf-8")
-sys.stderr = sys.stdout  # Redirect stderr to the same log file
+# Redirect stdout and stderr to the bot log file
+# This prevents excessive output being sent back to the cron job (on Replit)
+# or cluttering the console (locally).
+sys.stdout = open(BOT_LOG_FILE_PATH, "a", buffering=1, encoding="utf-8")
+sys.stderr = sys.stdout
 
-# --- DIAGNOSTIC PRINT (will now go to log file) ---
 print(
-    f"[{datetime.now().isoformat()}] Script started. Logs redirected to {LOG_FILE_PATH}"
+    f"[{datetime.now().isoformat()}] Script started. Logs redirected to {BOT_LOG_FILE_PATH}"
 )
 
 # --- Initialize Logging ---
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ],  # Direct logs to the redirected stdout
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
-# Load environment variables from .env file
 load_dotenv()
 
 # --- Configuration Loading from proj_config.json ---
@@ -97,11 +95,9 @@ except Exception as e:
 BOT_TITLE = CONFIG.get("title", "Telegram Channel Forwarder Bot")
 BOT_SHORTNAME = CONFIG.get("shortname", "ForwarderBot")
 UGANDA_TIMEZONE_STR = CONFIG.get("timezone", "Africa/Kampala")
-ACTIVE_START_HOUR = CONFIG.get("active_start_hour", 6)  # Default 6 AM
-ACTIVE_END_HOUR = CONFIG.get("active_end_hour", 20)  # Default 8 PM (20:00)
-OPERATION_DURATION_HOURS = CONFIG.get(
-    "operation_duration_hours", 23
-)  # Default 23 hours
+ACTIVE_START_HOUR = CONFIG.get("active_start_hour", 6)
+ACTIVE_END_HOUR = CONFIG.get("active_end_hour", 20)
+OPERATION_DURATION_HOURS = CONFIG.get("operation_duration_hours", 23)
 
 # --- Telethon API Credentials from Environment Variables ---
 API_ID = os.getenv("TELETHON_API_ID")
@@ -120,104 +116,47 @@ except ValueError:
     logger.critical("FATAL ERROR: TELETHON_API_ID must be an integer. Exiting.")
     sys.exit(1)
 
-
-# --- NEW: Helper function for parsing and validating channel config strings ---
-def _parse_channel_env_var(env_var_name):
-    """
-    Parses a JSON string from an environment variable for channel configuration,
-    and performs basic validation.
-    """
-    channel_config_str = os.getenv(env_var_name)
-    if not channel_config_str:
-        logger.critical(
-            f"FATAL ERROR: Environment variable '{env_var_name}' is missing or empty in .env. Exiting."
-        )
-        sys.exit(1)
-
-    try:
-        channel_data = json.loads(channel_config_str)
-    except json.JSONDecodeError:
-        logger.critical(
-            f"FATAL ERROR: '{env_var_name}' is not a valid JSON string: '{channel_config_str}'. Please check your .env format. Exiting."
-        )
-        sys.exit(1)
-    except Exception as e:
-        logger.critical(
-            f"FATAL ERROR: An unexpected error occurred parsing '{env_var_name}': {e}. Exiting.",
-            exc_info=True,
-        )
-        sys.exit(1)
-
-    # Convert simple string (if allowed by json.loads, which it won't be if it's not quoted)
-    # This block is mainly for robustness, though current usage expects JSON object.
-    if isinstance(channel_data, str):
-        channel_data = {"username": channel_data, "title": channel_data}
-
-    # Basic validation for required fields
-    identifier_present = channel_data.get("username") or channel_data.get("id")
-    if not identifier_present:
-        logger.critical(
-            f"FATAL ERROR: '{env_var_name}' JSON is missing 'username' or 'id'. Please provide at least one. Exiting."
-        )
-        sys.exit(1)
-
-    # Ensure title is present for logging clarity
-    if not channel_data.get("title"):
-        channel_data["title"] = channel_data.get("username") or str(
-            channel_data.get("id")
-        )
-        logger.warning(
-            f"Warning: '{env_var_name}' JSON is missing 'title'. Using '{channel_data['title']}' for logging."
-        )
-
-    # Validate private channel specifics
-    if channel_data.get("type") == "private":
-        if not channel_data.get("invite_hash") and not channel_data.get("id"):
-            logger.critical(
-                f"FATAL ERROR: Private channel '{env_var_name}' is missing 'invite_hash' or 'id'. For private channels, either an 'invite_hash' (to join) or an 'id' (if already a member) is required. Exiting."
-            )
-            sys.exit(1)
-
-    return channel_data
-
-
 # --- Use the new helper function for configuration loading ---
 try:
-    TARGET_CHANNEL_CONFIG = _parse_channel_env_var("TELETHON_TARGET_CHANNEL_CONFIG")
+    TARGET_CHANNEL_CONFIG = parse_channel_env_var("TELETHON_TARGET_CHANNEL_CONFIG")
     logger.info(
         f"Target channel config loaded: {TARGET_CHANNEL_CONFIG.get('title', 'N/A')}"
     )
-except SystemExit:  # Catch SystemExit if _parse_channel_env_var already exited
-    raise  # Re-raise to ensure the script truly exits
+except ValueError as e:
+    logger.critical(f"FATAL ERROR during target channel config parsing: {e}. Exiting.")
+    sys.exit(1)
+except RuntimeError as e:
+    logger.critical(
+        f"FATAL ERROR during target channel config parsing (unexpected error): {e}. Exiting.",
+        exc_info=True,
+    )
+    sys.exit(1)
 
 SOURCE_CHANNEL_CONFIGS = []
-for i in range(1, 100):  # Assuming max 99 source channels (can adjust)
+for i in range(1, 100):
     env_var_name = f"TELETHON_SOURCE_CHANNEL_{i}"
     source_channel_str = os.getenv(env_var_name)
-    if (
-        source_channel_str is None
-    ):  # None means the env var doesn't exist, so no more sources
+    if source_channel_str is None:
         break
 
     try:
-        # Use the helper function; it will handle critical errors and sys.exit(1) if parsing fails
-        source_config = _parse_channel_env_var(env_var_name)
+        source_config = parse_channel_env_var(env_var_name)
         SOURCE_CHANNEL_CONFIGS.append(source_config)
         logger.info(
             f"Source channel '{env_var_name}' config loaded: {source_config.get('title', 'N/A')}"
         )
-    except (
-        SystemExit
-    ):  # Catch SystemExit raised by _parse_channel_env_var for a specific source
-        # If a specific source channel config is malformed, _parse_channel_env_var will exit the script.
-        # This try-except is mainly for clarity that the loop won't continue if a previous source caused an exit.
-        raise  # Re-raise to ensure the script exits
+    except (ValueError, RuntimeError) as e:
+        logger.error(
+            f"ERROR: Failed to parse source channel '{env_var_name}': {e}. Skipping this channel."
+        )
+        continue
     except Exception as e:
         logger.error(
             f"ERROR: An unexpected issue occurred while processing '{env_var_name}': {e}. Skipping this channel.",
             exc_info=True,
         )
-        continue  # Continue to next source if there's a non-fatal parsing error
+        continue
+
 
 if not SOURCE_CHANNEL_CONFIGS:
     logger.critical(
@@ -225,13 +164,10 @@ if not SOURCE_CHANNEL_CONFIGS:
     )
     sys.exit(1)
 
-# Initialize client outside main to make it accessible for cleanup in finally block
-# Use a direct path for the sessions folder within the resolved root
 session_file_path = os.path.join(replit_root_dir, "sessions", "telethon_session")
 client = TelegramClient(session_file_path, API_ID, API_HASH)
 
 
-# --- Main Bot Logic ---
 async def main():
     logger.info("Starting Telethon client...")
     try:
@@ -267,7 +203,6 @@ async def main():
         )
         sys.exit(1)
 
-    # --- Resolve Target Channel ---
     target_channel_entity = None
     target_identifier = TARGET_CHANNEL_CONFIG.get("id") or TARGET_CHANNEL_CONFIG.get(
         "username"
@@ -278,7 +213,6 @@ async def main():
         f"Attempting to resolve target channel '{target_channel_name_for_logs}' (ID/Username: {target_identifier})..."
     )
 
-    # Handle private target channel joining if an invite hash is provided
     if TARGET_CHANNEL_CONFIG.get("type") == "private" and TARGET_CHANNEL_CONFIG.get(
         "invite_hash"
     ):
@@ -346,7 +280,6 @@ async def main():
         )
         sys.exit(1)
 
-    # --- Resolve Source Channels ---
     source_channel_entities = []
     for source_config in SOURCE_CHANNEL_CONFIGS:
         source_identifier = source_config.get("id") or source_config.get("username")
@@ -356,7 +289,6 @@ async def main():
             f"Attempting to resolve source channel '{source_channel_name_for_logs}' (ID/Username: {source_identifier})..."
         )
 
-        # Handle private source channel joining if an invite hash is provided
         if source_config.get("type") == "private" and source_config.get("invite_hash"):
             invite_hash = source_config["invite_hash"]
             logger.info(
@@ -375,18 +307,18 @@ async def main():
                 logger.error(
                     f"ERROR: The invite hash '{invite_hash}' for source channel '{source_channel_name_for_logs}' has expired or is invalid. Skipping this channel."
                 )
-                continue  # Skip this source channel and proceed to the next
+                continue
             except ChatIdInvalidError:
                 logger.error(
                     f"ERROR: The invite hash '{invite_hash}' for source channel '{source_channel_name_for_logs}' corresponds to an invalid chat ID. Skipping this channel."
                 )
-                continue  # Skip this source channel
+                continue
             except Exception as e:
                 logger.error(
                     f"ERROR: An unexpected error occurred while attempting to join source channel '{source_channel_name_for_logs}' with invite hash '{invite_hash}': {e}. Skipping this channel.",
                     exc_info=True,
                 )
-                continue  # Skip this source channel
+                continue
         elif (
             source_config.get("type") == "private"
             and not source_config.get("invite_hash")
@@ -426,7 +358,6 @@ async def main():
         )
         sys.exit(1)
 
-    # --- Message Forwarding Logic ---
     @client.on(events.NewMessage(chats=source_channel_entities))
     async def handler(event):
         try:
@@ -456,14 +387,12 @@ async def main():
         f"Bot scheduled to run for {OPERATION_DURATION_HOURS} hours, until {end_time.strftime('%Y-%m-%d %H:%M:%S %Z%z')}"
     )
 
-    # Keep the client running until operation duration is reached
     while datetime.now(pytz.timezone(UGANDA_TIMEZONE_STR)) < end_time:
-        await asyncio.sleep(60)  # Check every minute
+        await asyncio.sleep(60)
 
     logger.info("Operation duration reached. Initiating graceful shutdown.")
 
 
-# --- Script Entry Point ---
 if __name__ == "__main__":
     current_uganda_time = datetime.now(pytz.timezone(UGANDA_TIMEZONE_STR)).time()
 
@@ -471,10 +400,9 @@ if __name__ == "__main__":
         logger.info(
             f"Current Uganda time: {current_uganda_time.strftime('%H:%M')}. Bot is outside active hours ({ACTIVE_START_HOUR}:00 - {ACTIVE_END_HOUR}:00). Exiting gracefully."
         )
-        sys.exit(0)  # Exit gracefully if outside active hours
+        sys.exit(0)
 
     try:
-        # Create the sessions directory if it doesn't exist
         sessions_dir = os.path.join(replit_root_dir, "sessions")
         if not os.path.exists(sessions_dir):
             os.makedirs(sessions_dir)
@@ -482,9 +410,8 @@ if __name__ == "__main__":
         else:
             logger.info(f"Sessions directory already exists: {sessions_dir}")
 
-        asyncio.run(main())  # Run the main function
+        asyncio.run(main())
     except SystemExit:
-        # Catch SystemExit which is used for controlled exits
         logger.info("Script exited via SystemExit (controlled exit).")
     except Exception as e:
         logger.critical(
@@ -492,15 +419,14 @@ if __name__ == "__main__":
             exc_info=True,
         )
     finally:
-        # Ensure client is disconnected even if main() exits via sys.exit(0) or errors
         if client and client.is_connected():
             logger.info("Final cleanup: Disconnecting Telethon client.")
             client.disconnect()
-        logger.info("Telethon client disconnected. Script exiting.")
-        # Ensure that the log file is properly closed
+        # Ensure sys.stdout and sys.stderr are restored before script truly exits
+        # This is important if an external process (like start.bat) is also redirecting output
         if sys.stdout != sys.__stdout__:
             sys.stdout.close()
-            sys.stdout = sys.__stdout__  # Restore original stdout
+            sys.stdout = sys.__stdout__
         if sys.stderr != sys.__stderr__:
             sys.stderr.close()
-            sys.stderr = sys.__stderr__  # Restore original stderr
+            sys.stderr = sys.__stderr__

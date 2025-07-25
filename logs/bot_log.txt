@@ -1,0 +1,1 @@
+[2025-07-25T18:40:48.283457] Script started. Logs redirected to D:\Projects\python\TelegramChannel_Bot\logs\bot_log.txt

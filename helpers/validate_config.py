@@ -1,151 +1,126 @@
 import json
 import os
 import sys
-from dotenv import load_dotenv  # NEW: Import load_dotenv
+from dotenv import load_dotenv
 
-load_dotenv()  # NEW: Load environment variables from .env at script start
+# --- Import our new config parser ---
+# Adjust path if validate_config.py is in a subfolder like 'helpers'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from helpers.config_parser import parse_channel_env_var
 
-# Define required environment variables (excluding channel names now, as they are dynamic)
-REQUIRED_ENV_VARS = [
-    "TELETHON_API_ID",
-    "TELETHON_API_HASH",
-    "TELETHON_PHONE_NUMBER",
-    "TELETHON_TARGET_CHANNEL_CONFIG",  # NEW: Target channel config as JSON string
-]
+sys.path.pop(0)  # Remove added path to keep sys.path clean
 
-# Define required keys in proj_config.json (general settings only)
+
+# Define the path to proj_config.json relative to the script's location
+# If validate_config.py is in 'helpers/', then 'proj_config.json' is in the parent directory.
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "proj_config.json")
+CONFIG_PATH = os.path.abspath(CONFIG_PATH)
+
+# Required keys expected in proj_config.json
 REQUIRED_CONFIG_KEYS = [
-    "title",
-    "shortname",
+    "timezone",
     "active_start_hour",
     "active_end_hour",
     "operation_duration_hours",
 ]
 
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "..", "proj_config.json")
-CONFIG_PATH = os.path.abspath(CONFIG_PATH)
-
-
-def validate_channel_config(channel_data, is_target=False):
-    """Validates a single channel configuration dictionary."""
-    if not isinstance(channel_data, dict):
-        if is_target and isinstance(channel_data, str) and channel_data.strip():
-            # For target, a simple username string is also acceptable for public channels
-            return True, None
-        return False, "Channel config must be a JSON object."
-
-    identifier_present = channel_data.get("username") or channel_data.get("id")
-    if not identifier_present:
-        return False, "Channel config must have 'username' or 'id'."
-
-    if not channel_data.get("title"):
-        return False, "Channel config must have a 'title'."
-
-    if channel_data.get("type") == "private":
-        if not channel_data.get("invite_hash"):
-            return False, "Private channel config must have an 'invite_hash'."
-
-    return True, None
-
 
 def validate():
-    print("--- Validating Environment Variables ---")
-    # 1. Validate required environment variables (non-channel specific)
-    for env_var in REQUIRED_ENV_VARS:
+    print("--- Running Configuration Validation ---")
+    load_dotenv()  # Load .env variables for validation
+
+    # 1. Validate core environment variables
+    REQUIRED_CORE_ENV_VARS = [
+        "TELETHON_API_ID",
+        "TELETHON_API_HASH",
+        "TELETHON_PHONE_NUMBER",
+    ]
+    for env_var in REQUIRED_CORE_ENV_VARS:
         if not os.getenv(env_var):
-            print(f"❌ Missing or empty environment variable: {env_var}")
+            print(f"ERROR: Missing or empty core environment variable: {env_var}")
             return False
 
-    # 2. Validate TELETHON_TARGET_CHANNEL_CONFIG
-    target_channel_json = os.getenv("TELETHON_TARGET_CHANNEL_CONFIG")
-    if not target_channel_json:  # Check if the env var itself is missing or empty
-        print(
-            f"❌ Missing or empty environment variable: TELETHON_TARGET_CHANNEL_CONFIG"
-        )
-        return False
-
+    # 2. Validate TELETHON_API_ID is an integer
     try:
-        target_channel_data = json.loads(target_channel_json)
-        is_valid, error_msg = validate_channel_config(
-            target_channel_data, is_target=True
+        if os.getenv("TELETHON_API_ID"):
+            int(os.getenv("TELETHON_API_ID"))
+    except ValueError:
+        print("ERROR: TELETHON_API_ID must be an integer.")
+        return False
+
+    # 3. Validate target channel config using the shared parser
+    print("\n--- Validating Target Channel Configuration ---")
+    try:
+        target_config = parse_channel_env_var("TELETHON_TARGET_CHANNEL_CONFIG")
+        print(
+            f"SUCCESS: TELETHON_TARGET_CHANNEL_CONFIG loaded and parsed successfully: {target_config.get('title', 'N/A')}"
         )
-        if not is_valid:
-            print(f"❌ Invalid TELETHON_TARGET_CHANNEL_CONFIG: {error_msg}")
-            return False
-    except json.JSONDecodeError:
-        print(f"❌ TELETHON_TARGET_CHANNEL_CONFIG is not a valid JSON string.")
-        return False
-    except Exception as e:
-        print(f"❌ An error occurred validating TELETHON_TARGET_CHANNEL_CONFIG: {e}")
+    except (ValueError, RuntimeError) as e:
+        print(f"ERROR: Error in TELETHON_TARGET_CHANNEL_CONFIG: {e}")
         return False
 
-    print("✅ Environment variables validated.")
-
-    print("\n--- Validating Source Channel Environment Variables ---")
-    source_channel_count = 0
-    for i in range(1, 100):  # Assuming max 99 source channels (can adjust)
+    # 4. Validate source channel configurations using the shared parser
+    print("\n--- Validating Source Channel Configurations ---")
+    found_source_channels = False
+    for i in range(
+        1, 100
+    ):  # Check for TELETHON_SOURCE_CHANNEL_1 to TELETHON_SOURCE_CHANNEL_99
         env_var_name = f"TELETHON_SOURCE_CHANNEL_{i}"
-        source_channel_json = os.getenv(env_var_name)
-        if source_channel_json is None:
-            # No more source channels found
-            break
+        if os.getenv(env_var_name) is None:  # None means the env var does not exist
+            continue
 
-        source_channel_count += 1
         try:
-            source_channel_data = json.loads(source_channel_json)
-            is_valid, error_msg = validate_channel_config(source_channel_data)
-            if not is_valid:
-                print(f"❌ Invalid {env_var_name}: {error_msg}")
-                return False
-            print(f"✅ {env_var_name} validated.")
-        except json.JSONDecodeError:
-            print(f"❌ {env_var_name} is not a valid JSON string.")
-            return False
-        except Exception as e:
-            print(f"❌ An error occurred validating {env_var_name}: {e}")
+            source_config = parse_channel_env_var(env_var_name)
+            print(
+                f"SUCCESS: {env_var_name} loaded and parsed successfully: {source_config.get('title', 'N/A')}"
+            )
+            found_source_channels = True
+        except (ValueError, RuntimeError) as e:
+            print(f"ERROR: Error in {env_var_name}: {e}")
             return False
 
-    if source_channel_count == 0:
+    if not found_source_channels:
         print(
-            "❌ No TELETHON_SOURCE_CHANNEL_N variables found. At least one source channel is required."
+            "ERROR: No valid source channel configurations found (e.g., TELETHON_SOURCE_CHANNEL_1). At least one is required."
         )
         return False
-    print(f"✅ Found and validated {source_channel_count} source channels.")
 
+    # 5. Validate proj_config.json file existence
     print("\n--- Validating proj_config.json ---")
-    # 1. Validate proj_config.json file existence
     if not os.path.exists(CONFIG_PATH):
-        print("❌ proj_config.json not found.")
+        print(f"ERROR: proj_config.json not found at: {CONFIG_PATH}.")
         return False
 
-    # 2. Validate proj_config.json content
+    # 6. Validate proj_config.json content
     try:
-        with open(CONFIG_PATH, "r") as f:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
+    except json.JSONDecodeError:
+        print(f"ERROR: Failed to parse proj_config.json: It might be malformed JSON.")
+        return False
     except Exception as e:
-        print(f"❌ Failed to parse proj_config.json: {e}")
+        print(
+            f"ERROR: An unexpected error occurred while loading proj_config.json: {e}"
+        )
         return False
 
     for key in REQUIRED_CONFIG_KEYS:
         if key not in data:
-            print(f"❌ Missing required config field in proj_config.json: {key}")
+            print(f"ERROR: Missing required config field in proj_config.json: '{key}'")
             return False
-        if not isinstance(
-            data[key], (str, int)
-        ):  # Ensure these general settings are not empty/wrong type
+        if data[key] is None:  # Check for None values for required keys
             print(
-                f"❌ Invalid type for config field in proj_config.json: {key}. Expected string or int."
+                f"ERROR: Required config field '{key}' in proj_config.json cannot be empty."
             )
             return False
 
-    print("✅ proj_config.json validated.")
-    print("\n✅ All configurations validated successfully!")
+    print("SUCCESS: All proj_config.json fields are present.")
+
+    print("\n--- All Configurations Validated Successfully! ---")
     return True
 
 
 if __name__ == "__main__":
-    if validate():
-        print("\nConfiguration is valid. You can now run the bot.")
-    else:
-        print("\nConfiguration is NOT valid. Please fix the errors above.")
+    if not validate():
         sys.exit(1)
+    sys.exit(0)  # Exit with success code if validation passes
