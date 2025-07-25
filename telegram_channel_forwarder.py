@@ -56,8 +56,10 @@ logging.basicConfig(
 UGANDA_TIMEZONE = pytz.timezone(
     "Africa/Nairobi"
 )  # Nairobi is UTC+3, common for East Africa
-ACTIVE_START_HOUR = 12  # 10:00 AM UTC+3
-ACTIVE_END_HOUR = 2  # 11:00 PM (23:00) UTC+3
+# ACTIVE_START_HOUR = 12  # 10:00 AM UTC+3
+# ACTIVE_END_HOUR = 2  # 11:00 PM (23:00) UTC+3
+ACTIVE_START_HOUR = 6  # 6:00 AM UTC+3
+ACTIVE_END_HOUR = 20  # 8:00 PM (20:00) UTC+3
 OPERATION_DURATION_HOURS = (
     13  # The maximum duration the bot should run if started at 8 AM
 )
