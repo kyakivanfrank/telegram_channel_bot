@@ -8,8 +8,9 @@ START_LOG_FILE="$LOG_DIR/start_log.txt"
 # Ensure logs directory exists
 mkdir -p "$LOG_DIR"
 
-# Log when the bot is triggered
-echo "Triggered at $(date)" >> "$START_LOG_FILE"
+# Log when the Replit container starts up via run.sh
+echo "Replit container starting up via run.sh at $(date)" >> "$START_LOG_FILE"
 
-# Run the Telegram bot and capture all output into the bot log
-python3 telegram_channel_forwarder.py >> "$BOT_LOG_FILE" 2>&1
+# Run the Flask application
+# The Flask app will then manage the bot's lifecycle
+python3 app.py >> "$START_LOG_FILE" 2>&1

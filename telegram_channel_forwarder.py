@@ -404,40 +404,40 @@ async def main():
     )
 
 
-if __name__ == "__main__":
-    current_uganda_time = datetime.now(pytz.timezone(UGANDA_TIMEZONE_STR)).time()
+# if __name__ == "__main__":
+#     current_uganda_time = datetime.now(pytz.timezone(UGANDA_TIMEZONE_STR)).time()
 
-    if not (ACTIVE_START_HOUR <= current_uganda_time.hour < ACTIVE_END_HOUR):
-        logger.info(
-            f"Current Uganda time: {current_uganda_time.strftime('%H:%M')}. Bot is outside active hours ({ACTIVE_START_HOUR}:00 - {ACTIVE_END_HOUR}:00). Exiting gracefully."
-        )
-        sys.exit(0)
+#     if not (ACTIVE_START_HOUR <= current_uganda_time.hour < ACTIVE_END_HOUR):
+#         logger.info(
+#             f"Current Uganda time: {current_uganda_time.strftime('%H:%M')}. Bot is outside active hours ({ACTIVE_START_HOUR}:00 - {ACTIVE_END_HOUR}:00). Exiting gracefully."
+#         )
+#         sys.exit(0)
 
-    try:
-        sessions_dir = os.path.join(replit_root_dir, "sessions")
-        if not os.path.exists(sessions_dir):
-            os.makedirs(sessions_dir)
-            logger.info(f"Created sessions directory: {sessions_dir}")
-        else:
-            logger.info(f"Sessions directory already exists: {sessions_dir}")
+#     try:
+#         sessions_dir = os.path.join(replit_root_dir, "sessions")
+#         if not os.path.exists(sessions_dir):
+#             os.makedirs(sessions_dir)
+#             logger.info(f"Created sessions directory: {sessions_dir}")
+#         else:
+#             logger.info(f"Sessions directory already exists: {sessions_dir}")
 
-        asyncio.run(main())
-    except SystemExit:
-        logger.info("Script exited via SystemExit (controlled exit).")
-    except Exception as e:
-        logger.critical(
-            f"CRITICAL APPLICATION ERROR: Telethon bot encountered an unhandled exception during startup or main execution: {e}",
-            exc_info=True,
-        )
-    finally:
-        if client and client.is_connected():
-            logger.info("Final cleanup: Disconnecting Telethon client.")
-            client.disconnect()
-        # Ensure sys.stdout and sys.stderr are restored before script truly exits
-        # This is important if an external process (like start.bat) is also redirecting output
-        if sys.stdout != sys.__stdout__:
-            sys.stdout.close()
-            sys.stdout = sys.__stdout__
-        if sys.stderr != sys.__stderr__:
-            sys.stderr.close()
-            sys.stderr = sys.__stderr__
+#         asyncio.run(main())
+#     except SystemExit:
+#         logger.info("Script exited via SystemExit (controlled exit).")
+#     except Exception as e:
+#         logger.critical(
+#             f"CRITICAL APPLICATION ERROR: Telethon bot encountered an unhandled exception during startup or main execution: {e}",
+#             exc_info=True,
+#         )
+#     finally:
+#         if client and client.is_connected():
+#             logger.info("Final cleanup: Disconnecting Telethon client.")
+#             client.disconnect()
+#         # Ensure sys.stdout and sys.stderr are restored before script truly exits
+#         # This is important if an external process (like start.bat) is also redirecting output
+#         if sys.stdout != sys.__stdout__:
+#             sys.stdout.close()
+#             sys.stdout = sys.__stdout__
+#         if sys.stderr != sys.__stderr__:
+#             sys.stderr.close()
+#             sys.stderr = sys.__stderr__
