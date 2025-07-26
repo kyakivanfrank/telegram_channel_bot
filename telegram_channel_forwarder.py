@@ -23,6 +23,9 @@ from telethon.errors import (
 # --- Import our new config parser ---
 from helpers.config_parser import parse_channel_env_var
 
+# --- Import the notifier ---
+from helpers.notifier import notify_telegram
+
 # --- CRITICAL PATH FIX FOR REPLIT (Keep for future Replit deployment) ---
 # For local Windows execution, this will effectively be os.getcwd()
 # but this block specifically handles Replit's environment.
@@ -202,6 +205,10 @@ async def main():
             "FATAL ERROR: Telethon client is not authorized. Please run the script manually once to complete the login process (enter phone number, code, and 2FA if applicable). Exiting."
         )
         sys.exit(1)
+
+    # --- Send startup notification ---
+    await notify_telegram(client, f"{BOT_TITLE} started successfully!")
+    logger.info("Sent startup notification to Telegram.")
 
     target_channel_entity = None
     target_identifier = TARGET_CHANNEL_CONFIG.get("id") or TARGET_CHANNEL_CONFIG.get(
@@ -391,6 +398,10 @@ async def main():
         await asyncio.sleep(60)
 
     logger.info("Operation duration reached. Initiating graceful shutdown.")
+    # --- Send shutdown notification ---
+    await notify_telegram(
+        client, f"{BOT_TITLE} operation duration reached. Shutting down."
+    )
 
 
 if __name__ == "__main__":
