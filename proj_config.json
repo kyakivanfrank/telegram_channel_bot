@@ -1,8 +1,5 @@
 {
   "title": "Frank Kyakusse Telethon",
   "shortname": "FrankTelethon",
-  "timezone": "Africa/Kampala",
-  "active_start_hour": 6,
-  "active_end_hour": 20,
-  "operation_duration_hours": 13
+  "timezone": "Africa/Kampala"
 }

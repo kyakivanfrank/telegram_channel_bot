@@ -1,24 +1,11 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Define log folder and file paths
-set "LOGS_DIR=logs"
-set "START_LOG_FILE=%LOGS_DIR%\start_log.txt"
-set "BOT_LOG_FILE=%LOGS_DIR%\bot_log.txt"
+:: Removed LOGS_DIR, START_LOG_FILE, BOT_LOG_FILE definitions
+:: Removed creation of logs directory
+:: Removed redirection of batch script output to START_LOG_FILE
+:: The bot's Python script will now output directly to console
 
-:: Create logs directory if it doesn't exist
-if not exist "%LOGS_DIR%" (
-  mkdir "%LOGS_DIR%"
-)
-
-:: --- Redirect all output of this batch script to START_LOG_FILE ---
-:: Delete previous start log file to start fresh for the batch script's output
-del "%START_LOG_FILE%" >nul 2>&1
-:: Call the main part of the script, redirecting all its output
-call :main_script > "%START_LOG_FILE%" 2>&1
-goto :eof
-
-:main_script
 :: --- All original content of your start.bat goes here ---
 :: Ensure that 'python' calls below are NOT followed by '>>' or '>' redirection here,
 :: as the Python scripts themselves will handle their own logging to bot_log.txt.
@@ -37,73 +24,36 @@ IF %ERRORLEVEL% NEQ 0 (
 echo SUCCESS: Python is installed.
 echo.
 
-:: Step 1: Create virtual environment if missing
-if not exist "venv" (
-  echo ==================================================
-  echo [STEP 1] Creating Python Virtual Environment...
-  echo ==================================================
-  python -m venv venv
-  IF %ERRORLEVEL% NEQ 0 (
-    echo ERROR: Failed to create virtual environment.
-    pause
-    exit /b
-  )
-)
-echo SUCCESS: Virtual environment exists or created.
-echo.
+:: Step 1: Check and Install Python Dependencies from requirements.txt
+echo ==================================================
+echo [STEP 1] Checking and Installing Python Dependencies...
+==================================================
 
-:: Step 2: Activate virtual environment
-echo ==================================================
-echo [STEP 2] Activating Virtual Environment...
-echo ==================================================
-call venv\Scripts\activate.bat
-IF %ERRORLEVEL% NEQ 0 (
-  echo ERROR: Failed to activate virtual environment.
+:: Check if requirements.txt exists
+if not exist "requirements.txt" (
+  echo ERROR: requirements.txt not found. Cannot install dependencies.
   pause
   exit /b
 )
-echo SUCCESS: Virtual environment activated.
-echo.
 
-:: Step 3: Upgrade pip
-echo ==================================================
-echo [STEP 3] Upgrading pip...
-echo ==================================================
-python -m pip install --upgrade pip >nul
-echo SUCCESS: Pip upgraded.
-echo.
-
-:: Step 4: Install required Python packages (Telethon and python-dotenv only)
-echo ==================================================
-echo [STEP 4] Installing Python Dependencies (Telethon and python-dotenv only)...
-echo ==================================================
-
-:: Check and install telethon
-python -c "import telethon" >nul 2>&1 || (
-  echo Installing Telethon...
-  pip install telethon
-)
-
-:: Check and install python-dotenv
-python -c "import dotenv" >nul 2>&1 || (
-  echo Installing python-dotenv...
-  pip install python-dotenv
-)
-
-:: Check and install pytz
-python -c "import pytz" >nul 2>&1 || (
-  echo Installing pytz...
-  pip install pytz
+:: Install all dependencies listed in requirements.txt
+pip install -r requirements.txt
+IF %ERRORLEVEL% NEQ 0 (
+  echo ERROR: Failed to install Python dependencies.
+  echo.
+  echo Please check the error messages above and ensure you have pip installed and a working internet connection.
+  pause
+  exit /b
 )
 
 echo SUCCESS: All dependencies checked/installed.
 echo.
 
-:: Step 5: Validate configurations
+:: Step 2: Validate Configurations...
 echo ==================================================
-echo [STEP 5] Validating Configurations...
-echo ==================================================
-:: This output will go to start_log.txt because start.bat is redirected
+echo [STEP 2] Validating Configurations...
+==================================================
+:: This output will now go directly to the console
 python helpers\validate_config.py
 IF %ERRORLEVEL% NEQ 0 (
   echo ERROR: Configuration validation failed.
@@ -115,13 +65,12 @@ IF %ERRORLEVEL% NEQ 0 (
 echo SUCCESS: All configurations validated successfully!
 echo.
 
-:: Step 6: Run the Telegram Channel Forwarder Bot
+:: Step 3: Run the Telegram Channel Forwarder Bot...
 echo ==================================================
-echo [STEP 6] Running Telegram Channel Forwarder Bot...
-echo ==================================================
-:: This script will handle its own logging to bot_log.txt
+echo [STEP 3] Running Telegram Channel Forwarder Bot...
+==================================================
+:: This script will now output its logs directly to the console
 python telegram_channel_forwarder.py
 
-:: Final pause to keep the console open after the bot exits
+:: Add a pause at the end to keep the terminal open after execution
 pause
-:: --- END of main_script content ---
