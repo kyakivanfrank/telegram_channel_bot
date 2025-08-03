@@ -2,18 +2,19 @@
 
 # --- Script for automated setup and running of the Telegram Channel Forwarder Bot on Linux ---
 # This script performs:
-# 1. Checks for Python 3 and pip installation.
-# 2. Installs 'screen' (for persistent execution) if not present.
-# 3. Creates and activates a Python virtual environment.
-# 4. Installs all Python dependencies from requirements.txt.
-# 5. Runs the configuration validation script (helpers/validate_config.py).
-# 6. Starts the Telegram bot (telegram_channel_forwarder.py) within a 'screen' session for persistent execution.
+# 1. Checks for Python 3 installation.
+# 2. Installs 'python3-venv' (essential for virtual environments).
+# 3. Installs 'screen' (for persistent execution) if not present.
+# 4. Creates and activates a Python virtual environment.
+# 5. Installs all Python dependencies from requirements.txt.
+# 6. Runs the configuration validation script (helpers/validate_config.py).
+# 7. Starts the Telegram bot (telegram_channel_forwarder.py) within a 'screen' session for persistent execution.
 
 # Exit immediately if a command exits with a non-zero status.
 set -e
 
 echo "=================================================="
-echo "[STEP 0] Checking Python Installation..."
+echo "[STEP 0] Checking Python Installation and Essential Tools..."
 echo "=================================================="
 
 # Check for Python 3
@@ -26,15 +27,18 @@ then
 fi
 echo "SUCCESS: Python 3 is installed."
 
-# Check for pip3
-if ! command -v pip3 &> /dev/null
-then
-    echo "ERROR: pip3 is not installed. Please install pip3."
-    echo "For Ubuntu/Debian: sudo apt install python3-pip -y"
-    echo "For Amazon Linux/CentOS: sudo yum install python3-pip -y"
-    exit 1
+# Install python3-venv (crucial for creating virtual environments on modern Ubuntu)
+echo "Installing python3-venv..."
+if command -v apt &> /dev/null; then
+    sudo apt update # Ensure package lists are up to date before installing
+    sudo apt install python3-venv -y
+elif command -v yum &> /dev/null; then
+    sudo yum install python3-venv -y
+else
+    echo "Warning: Could not determine package manager to install 'python3-venv'. Please install it manually."
+    # We will still try to proceed, but venv creation might fail later.
 fi
-echo "SUCCESS: pip3 is installed."
+echo "SUCCESS: python3-venv check/installation complete."
 echo ""
 
 # Optional: Install screen for persistent execution if not already installed
@@ -83,6 +87,7 @@ fi
 
 # Install all dependencies listed in requirements.txt
 echo "Installing Python dependencies from requirements.txt..."
+# This pip command will use the pip inside the activated virtual environment
 pip install -r requirements.txt
 if [ $? -ne 0 ]; then # Check the exit status of the last command
     echo "ERROR: Failed to install Python dependencies."

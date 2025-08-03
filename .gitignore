@@ -7,11 +7,12 @@ __pycache__/
 venv/
 .venv/
 
+
 # # Telethon session files
-# sessions/
-# *.session
-# *.session-journal
-# *.sqlite # Telethon sessions can sometimes use .sqlite extension
+sessions/
+*.session
+*.session-journal
+*.sqlite # Telethon sessions can sometimes use .sqlite extension
 
 # Configuration files (containing sensitive data - DO NOT UPLOAD TO PUBLIC REPOS)
 .env # Add this line to ignore your local .env file
