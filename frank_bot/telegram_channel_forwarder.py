@@ -70,11 +70,11 @@ logger = logging.getLogger(__name__)
 if not any(
     isinstance(h, logging.StreamHandler) for h in logging.getLogger("telethon").handlers
 ):
-    telethon_logger = logging.getLogger("telethon")
-    telethon_logger.setLevel(
+    TELETHON_ACC_1_logger = logging.getLogger("telethon")
+    TELETHON_ACC_1_logger.setLevel(
         logging.WARNING
     )  # Set Telethon's log level to WARNING to reduce verbosity
-    telethon_logger.addHandler(
+    TELETHON_ACC_1_logger.addHandler(
         logging.StreamHandler(sys.stdout)
     )  # Add console handler for Telethon logs
 
@@ -82,7 +82,9 @@ if not any(
 load_dotenv()
 
 # --- Configuration Loading from proj_config.json ---
-CONFIG_PATH = os.path.join(replit_root_dir, "proj_config.json")
+CONFIG_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "proj_config.json"
+)
 CONFIG = {}
 try:
     if os.path.exists(CONFIG_PATH):
@@ -114,13 +116,13 @@ UGANDA_TIMEZONE_STR = CONFIG.get("timezone", "Africa/Kampala")
 
 
 # --- Telethon API Credentials from Environment Variables ---
-API_ID = os.getenv("TELETHON_API_ID")
-API_HASH = os.getenv("TELETHON_API_HASH")
-PHONE_NUMBER = os.getenv("TELETHON_PHONE_NUMBER")
+API_ID = os.getenv("TELETHON_ACC_1_API_ID")
+API_HASH = os.getenv("TELETHON_ACC_1_API_HASH")
+PHONE_NUMBER = os.getenv("TELETHON_ACC_1_PHONE_NUMBER")
 
 if not all([API_ID, API_HASH, PHONE_NUMBER]):
     logger.critical(
-        "FATAL ERROR: TELETHON_API_ID, TELETHON_API_HASH, or TELETHON_PHONE_NUMBER not found in .env. Exiting."
+        "FATAL ERROR: TELETHON_ACC_1_API_ID, TELETHON_ACC_1_API_HASH, or TELETHON_ACC_1_PHONE_NUMBER not found in .env. Exiting."
     )
     raise BotFatalError(
         "Missing critical Telethon environment variables."
@@ -129,13 +131,17 @@ if not all([API_ID, API_HASH, PHONE_NUMBER]):
 try:
     API_ID = int(API_ID)
 except ValueError:
-    logger.critical("FATAL ERROR: TELETHON_API_ID must be an integer. Exiting.")
-    raise BotFatalError("TELETHON_API_ID must be an integer.")  # Raise custom error
+    logger.critical("FATAL ERROR: TELETHON_ACC_1_API_ID must be an integer. Exiting.")
+    raise BotFatalError(
+        "TELETHON_ACC_1_API_ID must be an integer."
+    )  # Raise custom error
 
 # --- Use the new helper function for configuration loading ---
 try:
-    # This line remains as TELETHON_TARGET_CHANNEL_CONFIG to match your .env file.
-    TARGET_CHANNEL_CONFIG = parse_channel_env_var("TELETHON_TARGET_CHANNEL_CONFIG")
+    # This line remains as TELETHON_ACC_1_TARGET_CHANNEL_CONFIG to match your .env file.
+    TARGET_CHANNEL_CONFIG = parse_channel_env_var(
+        "TELETHON_ACC_1_TARGET_CHANNEL_CONFIG"
+    )
     logger.info(
         f"Target channel config loaded: {TARGET_CHANNEL_CONFIG.get('title', 'N/A')}"
     )
@@ -153,7 +159,7 @@ except RuntimeError as e:
 
 SOURCE_CHANNEL_CONFIGS = []
 for i in range(1, 100):
-    env_var_name = f"TELETHON_SOURCE_CHANNEL_{i}"
+    env_var_name = f"TELETHON_ACC_1_SOURCE_CHANNEL_{i}"
     source_channel_str = os.getenv(env_var_name)
     if source_channel_str is None:
         break
@@ -179,13 +185,15 @@ for i in range(1, 100):
 
 if not SOURCE_CHANNEL_CONFIGS:
     logger.critical(
-        "FATAL ERROR: No valid source channel configurations found in .env (e.g., TELETHON_SOURCE_CHANNEL_1). At least one source channel is required. Exiting."
+        "FATAL ERROR: No valid source channel configurations found in .env (e.g., TELETHON_ACC_1_SOURCE_CHANNEL_1). At least one source channel is required. Exiting."
     )
     raise BotFatalError(
         "No valid source channel configurations found."
     )  # Raise custom error
 
-session_file_path = os.path.join(replit_root_dir, "sessions", "telethon_session")
+session_file_path = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "sessions", "TELETHON_ACC_1_session"
+)
 client = TelegramClient(session_file_path, API_ID, API_HASH)
 
 

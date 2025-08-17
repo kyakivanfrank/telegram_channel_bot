@@ -1,15 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Removed LOGS_DIR, START_LOG_FILE, BOT_LOG_FILE definitions
-:: Removed creation of logs directory
-:: Removed redirection of batch script output to START_LOG_FILE
-:: The bot's Python script will now output directly to console
-
-:: --- All original content of your start.bat goes here ---
-:: Ensure that 'python' calls below are NOT followed by '>>' or '>' redirection here,
-:: as the Python scripts themselves will handle their own logging to bot_log.txt.
-
 echo ==================================================
 echo [STEP 0] Checking Python Installation...
 echo ==================================================
@@ -54,7 +45,7 @@ echo ==================================================
 echo [STEP 2] Validating Configurations...
 ==================================================
 :: This output will now go directly to the console
-python helpers\validate_config.py
+python frank_bot\helpers\validate_config.py
 IF %ERRORLEVEL% NEQ 0 (
   echo ERROR: Configuration validation failed.
   echo.
@@ -70,7 +61,7 @@ echo ==================================================
 echo [STEP 3] Running Telegram Channel Forwarder Bot...
 ==================================================
 :: This script will now output its logs directly to the console
-python telegram_channel_forwarder.py
+python frank_bot\telegram_channel_forwarder.py
 
 :: Add a pause at the end to keep the terminal open after execution
 pause

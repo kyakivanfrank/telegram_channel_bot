@@ -5,4 +5,4 @@
 # Removed mkdir -p "$LOG_DIR"
 
 # Run the Telegram bot directly
-python3 telegram_channel_forwarder.py
+python3 frank_bot/telegram_channel_forwarder.py

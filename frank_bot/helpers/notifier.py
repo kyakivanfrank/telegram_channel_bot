@@ -4,7 +4,7 @@ from telethon import TelegramClient
 
 
 async def notify_telegram(client: TelegramClient, message: str):
-    chat_id = os.getenv("TELETHON_NOTIFICATION_CHAT_ID")
+    chat_id = os.getenv("TELETHON_ACC_1_NOTIFICATION_CHAT_ID")
     if not chat_id:
         return
     try:
