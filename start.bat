@@ -45,7 +45,7 @@ echo ==================================================
 echo [STEP 2] Validating Configurations...
 ==================================================
 :: This output will now go directly to the console
-python frank_bot\helpers\validate_config.py
+python raymond_bot\helpers\validate_config.py
 IF %ERRORLEVEL% NEQ 0 (
   echo ERROR: Configuration validation failed.
   echo.
@@ -61,7 +61,7 @@ echo ==================================================
 echo [STEP 3] Running Telegram Channel Forwarder Bot...
 ==================================================
 :: This script will now output its logs directly to the console
-python frank_bot\telegram_channel_forwarder.py
+python raymond_bot\telegram_channel_forwarder.py
 
 :: Add a pause at the end to keep the terminal open after execution
 pause

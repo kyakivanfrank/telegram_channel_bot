@@ -28,10 +28,10 @@ def validate():
 
     # 1. Validate core environment variables
     REQUIRED_CORE_ENV_VARS = [
-        "TELETHON_ACCOUNT_1_API_ID",
-        "TELETHON_ACCOUNT_1_API_HASH",
-        "TELETHON_ACCOUNT_1_PHONE_NUMBER",
-        "TELETHON_ACCOUNT_1_NOTIFICATION_CHAT_ID",  # Added notification chat ID to required env vars
+        "TELETHON_ACCOUNT_2_API_ID",
+        "TELETHON_ACCOUNT_2_API_HASH",
+        "TELETHON_ACCOUNT_2_PHONE_NUMBER",
+        "TELETHON_ACCOUNT_2_NOTIFICATION_CHAT_ID",  # Added notification chat ID to required env vars
     ]
     all_core_env_vars_present = True
     for var in REQUIRED_CORE_ENV_VARS:
@@ -50,23 +50,23 @@ def validate():
     # 2. Validate target channel environment variable
     print("\n--- Validating Target Channel Configuration ---")
     try:
-        # Corrected: Referencing TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG as per your .env file
-        target_channel_config = os.getenv("TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG")
+        # Corrected: Referencing TELETHON_ACCOUNT_2_TARGET_CHANNEL_CONFIG as per your .env file
+        target_channel_config = os.getenv("TELETHON_ACCOUNT_2_TARGET_CHANNEL_CONFIG")
         if not target_channel_config:
             print(
-                "ERROR: Environment variable 'TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG' is missing or empty."
+                "ERROR: Environment variable 'TELETHON_ACCOUNT_2_TARGET_CHANNEL_CONFIG' is missing or empty."
             )
             return False
         # Attempt to parse to ensure it's valid JSON (or string)
         parse_channel_env_var(
-            "TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG"
+            "TELETHON_ACCOUNT_2_TARGET_CHANNEL_CONFIG"
         )  # Pass the correct name to the parser
         print(
-            "SUCCESS: TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG loaded and parsed successfully."
+            "SUCCESS: TELETHON_ACCOUNT_2_TARGET_CHANNEL_CONFIG loaded and parsed successfully."
         )
     except Exception as e:
         print(
-            f"ERROR: TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG configuration is invalid: {e}"
+            f"ERROR: TELETHON_ACCOUNT_2_TARGET_CHANNEL_CONFIG configuration is invalid: {e}"
         )
         return False
 
@@ -75,7 +75,7 @@ def validate():
     source_channels_found = False
     i = 1
     while True:
-        source_channel_config_name = f"TELETHON_ACCOUNT_1_SOURCE_CHANNEL_{i}"
+        source_channel_config_name = f"TELETHON_ACCOUNT_2_SOURCE_CHANNEL_{i}"
         source_channel_config_value = os.getenv(source_channel_config_name)
         if not source_channel_config_value:
             break
@@ -93,7 +93,7 @@ def validate():
     if not source_channels_found:
         print(
             "ERROR: No source channels configured. "
-            "Please set at least one TELETHON_ACCOUNT_1_SOURCE_CHANNEL_1 environment variable. At least one is required."
+            "Please set at least one TELETHON_ACCOUNT_2_SOURCE_CHANNEL_1 environment variable. At least one is required."
         )
         return False
 
