@@ -16,8 +16,9 @@ if not parser_logger.handlers:
 def parse_channel_env_var(env_var_name):
     """
     Parses a JSON string from an environment variable for channel configuration,
-    and performs basic validation. It attempts to strip potential outer quotes.
-    Returns the parsed dictionary or raises an exception if parsing/validation fails.
+    and performs basic validation. It now also handles the 'active' flag.
+    Returns the parsed dictionary, or None if the channel is marked inactive.
+    Raises an exception if parsing/validation fails for an active channel.
     """
     channel_config_str = os.getenv(env_var_name)
     if not channel_config_str:
@@ -49,8 +50,18 @@ def parse_channel_env_var(env_var_name):
         )
         raise RuntimeError(f"Unexpected parsing error for {env_var_name}: {e}")
 
+    # --- NEW: Check for 'active' flag. This is the key change. ---
+    # If 'active' key is present and explicitly set to False, return None
+    # to signal to the main script that this channel should be skipped entirely.
+    if "active" in channel_data and not channel_data["active"]:
+        parser_logger.info(
+            f"Channel from '{env_var_name}' is marked as inactive and will be skipped."
+        )
+        return None
+    # --- END NEW ---
+
     # Convert simple string (if allowed by json.loads, which it won't be if it's not quoted)
-    # This block is mainly for robustness, though current usage expects JSON object.
+    # This block is mainly for robustness, though current usage expects a JSON object.
     if isinstance(channel_data, str):
         # If it's just a string, assume it's a username/title
         channel_data = {"username": channel_data, "title": channel_data}

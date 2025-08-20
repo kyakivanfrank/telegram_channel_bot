@@ -104,9 +104,17 @@ echo "[STEP 2] Validating Configurations..."
 echo "=================================================="
 
 # Run the configuration validation script
-python3 helpers/validate_config.py
+python3 frank_bot/helpers/validate_config.py
 if [ $? -ne 0 ]; then
-    echo "ERROR: Configuration validation failed."
+    echo "ERROR: Frank bot configuration validation failed."
+    echo "Please check the error messages above for details and fix your .env or proj_config.json."
+    deactivate # Deactivate venv before exiting
+    exit 1
+fi
+
+python3 raymond_bot/helpers/validate_config.py
+if [ $? -ne 0 ]; then
+    echo "ERROR: Raymond bot configuration validation failed."
     echo "Please check the error messages above for details and fix your .env or proj_config.json."
     deactivate # Deactivate venv before exiting
     exit 1
@@ -118,18 +126,17 @@ echo "=================================================="
 echo "[STEP 3] Running Telegram Channel Forwarder Bot..."
 echo "=================================================="
 
-# Check if a screen session for the bot is already running
-if screen -list | grep -q "telegram_bot"; then
-    echo "A 'telegram_bot' screen session is already running. Attaching to it."
-    screen -r telegram_bot
-else
-    echo "Starting the Telegram bot in a new 'screen' session named 'telegram_bot'."
-    # -dmS: detach, create, name session
-    # The 'bash -c' ensures the venv is activated within the screen session before running the bot.
-    screen -dmS telegram_bot bash -c "source venv/bin/activate && python3 telegram_channel_forwarder.py"
-    echo "Bot started in 'screen' session. To re-attach, run: screen -r telegram_bot"
-    echo "To detach, press Ctrl+A then D."
-    echo "To stop the bot, re-attach to the session and press Ctrl+C."
-fi
+# Start each bot in its own unique screen session
+echo "Starting Frank bot in a new 'screen' session named 'frank_bot'."
+screen -dmS frank_bot bash -c "source venv/bin/activate && python3 frank_bot/telegram_channel_forwarder.py"
+
+echo "Starting Raymond bot in a new 'screen' session named 'raymond_bot'."
+screen -dmS raymond_bot bash -c "source venv/bin/activate && python3 raymond_bot/telegram_channel_forwarder.py"
+
+echo "Bots started in 'screen' sessions. To re-attach to Frank bot, run: screen -r frank_bot"
+echo "To re-attach to Raymond bot, run: screen -r raymond_bot"
+echo "To list all screen sessions, run: screen -ls"
+echo "To detach, press Ctrl+A then D."
+echo "To stop a bot, re-attach to its session and press Ctrl+C."
 
 echo "Setup and run process complete."

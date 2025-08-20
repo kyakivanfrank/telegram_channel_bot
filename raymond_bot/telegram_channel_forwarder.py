@@ -168,10 +168,15 @@ for i in range(1, 100):
 
     try:
         source_config = parse_channel_env_var(env_var_name)
-        SOURCE_CHANNEL_CONFIGS.append(source_config)
-        logger.info(
-            f"Source channel '{env_var_name}' config loaded: {source_config.get('title', 'N/A')}"
-        )
+        # --- NEW: Check for the 'None' return from the parser before proceeding. ---
+        if source_config is not None:
+            SOURCE_CHANNEL_CONFIGS.append(source_config)
+            logger.info(
+                f"Source channel '{env_var_name}' config loaded: {source_config.get('title', 'N/A')}"
+            )
+        # The parser already logs that the channel is inactive, so no extra log needed here.
+        # The loop will automatically continue to the next channel.
+        # --- END NEW ---
     except (ValueError, RuntimeError) as e:
         logger.error(
             f"ERROR: Failed to parse source channel '{env_var_name}': {e}. Skipping this channel."

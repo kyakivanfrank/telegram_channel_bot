@@ -18,7 +18,7 @@ echo.
 :: Step 1: Check and Install Python Dependencies from requirements.txt
 echo ==================================================
 echo [STEP 1] Checking and Installing Python Dependencies...
-==================================================
+echo ==================================================
 
 :: Check if requirements.txt exists
 if not exist "requirements.txt" (
@@ -43,8 +43,18 @@ echo.
 :: Step 2: Validate Configurations...
 echo ==================================================
 echo [STEP 2] Validating Configurations...
-==================================================
+echo ==================================================
 :: This output will now go directly to the console
+python frank_bot\helpers\validate_config.py
+IF %ERRORLEVEL% NEQ 0 (
+  echo ERROR: Configuration validation failed.
+  echo.
+  echo Please check the error messages above for details and fix your .env or proj_config.json.
+  pause
+  exit /b
+)
+echo SUCCESS: All configurations validated successfully!
+
 python raymond_bot\helpers\validate_config.py
 IF %ERRORLEVEL% NEQ 0 (
   echo ERROR: Configuration validation failed.
@@ -59,9 +69,10 @@ echo.
 :: Step 3: Run the Telegram Channel Forwarder Bot...
 echo ==================================================
 echo [STEP 3] Running Telegram Channel Forwarder Bot...
-==================================================
-:: This script will now output its logs directly to the console
-python raymond_bot\telegram_channel_forwarder.py
+echo ==================================================
+:: Use the 'start' command to run each bot in a new, separate window.
+start "Frank Bot" python frank_bot\telegram_channel_forwarder.py
+start "Raymond Bot" python raymond_bot\telegram_channel_forwarder.py
 
-:: Add a pause at the end to keep the terminal open after execution
+:: The 'pause' command will keep the original terminal open.
 pause
