@@ -3,15 +3,8 @@ import json
 import os
 import sys
 import asyncio
-from datetime import (
-    datetime,
-    time,
-    timedelta,
-)  # Keeping these for potential use in logging timestamps, as in original
-import pytz  # Keeping for timezone handling in logging
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.tl.functions.channels import JoinChannelRequest
 from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.errors import (
     UserAlreadyParticipantError,
@@ -38,11 +31,10 @@ class BotFatalError(Exception):
     pass
 
 
-# --- CRITICAL PATH FIX FOR REPLIT (Keep for future Replit deployment) ---
+# --- CRITICAL PATH FIX FOR REPLIT ---
 # For local Windows execution, this will effectively be os.getcwd()
 # but this block specifically handles Replit's environment.
-# Assuming bot will be run from its root directory locally or on Replit.
-replit_root_dir = os.getcwd()  # Changed from hardcoded Replit path
+replit_root_dir = os.getcwd()
 replit_site_packages_path = os.path.join(
     replit_root_dir, ".pythonlibs", "lib", "python3.12", "site-packages"
 )
@@ -54,29 +46,22 @@ if (
 # --- END CRITICAL PATH FIX ---
 
 
-# --- LOGGING SETUP (MODIFIED: NO FILE REDIRECTION) ---
-# Removed LOGS_DIR and BOT_LOG_FILE_PATH definitions
-# Removed sys.stdout = open(...) and sys.stderr = sys.stdout
-
+# --- LOGGING SETUP ---
 # Initialize Logging to console only
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],  # Only stream to stdout
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 logger = logging.getLogger(__name__)
 
-# Prevent Telethon's logger from adding duplicate handlers if it's already configured
+# Prevent Telethon's logger from adding duplicate handlers
 if not any(
     isinstance(h, logging.StreamHandler) for h in logging.getLogger("telethon").handlers
 ):
     TELETHON_ACCOUNT_1_logger = logging.getLogger("telethon")
-    TELETHON_ACCOUNT_1_logger.setLevel(
-        logging.WARNING
-    )  # Set Telethon's log level to WARNING to reduce verbosity
-    TELETHON_ACCOUNT_1_logger.addHandler(
-        logging.StreamHandler(sys.stdout)
-    )  # Add console handler for Telethon logs
+    TELETHON_ACCOUNT_1_logger.setLevel(logging.WARNING)
+    TELETHON_ACCOUNT_1_logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 load_dotenv()
@@ -97,23 +82,18 @@ except json.JSONDecodeError:
     logger.critical(
         f"FATAL ERROR: Could not parse {CONFIG_PATH}. It might be malformed JSON. Exiting."
     )
-    raise BotFatalError(
-        f"Malformed proj_config.json: {CONFIG_PATH}"
-    )  # Raise custom error
+    raise BotFatalError(f"Malformed proj_config.json: {CONFIG_PATH}")
 except Exception as e:
     logger.critical(
         f"FATAL ERROR: An unexpected error occurred while loading {CONFIG_PATH}: {e}. Exiting.",
         exc_info=True,
     )
-    raise BotFatalError(f"Error loading proj_config.json: {e}")  # Raise custom error
+    raise BotFatalError(f"Error loading proj_config.json: {e}")
 
 # --- General Bot Settings from CONFIG ---
 BOT_TITLE = CONFIG.get("title", "Telegram Channel Forwarder Bot")
 BOT_SHORTNAME = CONFIG.get("shortname", "ForwarderBot")
 UGANDA_TIMEZONE_STR = CONFIG.get("timezone", "Africa/Kampala")
-# Removed ACTIVE_START_HOUR, ACTIVE_END_HOUR, OPERATION_DURATION_HOURS
-# as the bot is now configured for continuous operation and these are not used for exit logic.
-
 
 # --- Telethon API Credentials from Environment Variables ---
 API_ID = os.getenv("TELETHON_ACCOUNT_1_API_ID")
@@ -124,9 +104,7 @@ if not all([API_ID, API_HASH, PHONE_NUMBER]):
     logger.critical(
         "FATAL ERROR: TELETHON_ACCOUNT_1_API_ID, TELETHON_ACCOUNT_1_API_HASH, or TELETHON_ACCOUNT_1_PHONE_NUMBER not found in .env. Exiting."
     )
-    raise BotFatalError(
-        "Missing critical Telethon environment variables."
-    )  # Raise custom error
+    raise BotFatalError("Missing critical Telethon environment variables.")
 
 try:
     API_ID = int(API_ID)
@@ -134,13 +112,10 @@ except ValueError:
     logger.critical(
         "FATAL ERROR: TELETHON_ACCOUNT_1_API_ID must be an integer. Exiting."
     )
-    raise BotFatalError(
-        "TELETHON_ACCOUNT_1_API_ID must be an integer."
-    )  # Raise custom error
+    raise BotFatalError("TELETHON_ACCOUNT_1_API_ID must be an integer.")
 
 # --- Use the new helper function for configuration loading ---
 try:
-    # This line remains as TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG to match your .env file.
     TARGET_CHANNEL_CONFIG = parse_channel_env_var(
         "TELETHON_ACCOUNT_1_TARGET_CHANNEL_CONFIG"
     )
@@ -149,15 +124,13 @@ try:
     )
 except ValueError as e:
     logger.critical(f"FATAL ERROR during target channel config parsing: {e}. Exiting.")
-    raise BotFatalError(f"Target channel config invalid: {e}")  # Raise custom error
+    raise BotFatalError(f"Target channel config invalid: {e}")
 except RuntimeError as e:
     logger.critical(
         f"FATAL ERROR during target channel config parsing (unexpected error): {e}. Exiting.",
         exc_info=True,
     )
-    raise BotFatalError(
-        f"Target channel config parsing error: {e}"
-    )  # Raise custom error
+    raise BotFatalError(f"Target channel config parsing error: {e}")
 
 SOURCE_CHANNEL_CONFIGS = []
 for i in range(1, 100):
@@ -168,15 +141,11 @@ for i in range(1, 100):
 
     try:
         source_config = parse_channel_env_var(env_var_name)
-        # --- NEW: Check for the 'None' return from the parser before proceeding. ---
         if source_config is not None:
             SOURCE_CHANNEL_CONFIGS.append(source_config)
             logger.info(
                 f"Source channel '{env_var_name}' config loaded: {source_config.get('title', 'N/A')}"
             )
-        # The parser already logs that the channel is inactive, so no extra log needed here.
-        # The loop will automatically continue to the next channel.
-        # --- END NEW ---
     except (ValueError, RuntimeError) as e:
         logger.error(
             f"ERROR: Failed to parse source channel '{env_var_name}': {e}. Skipping this channel."
@@ -194,9 +163,7 @@ if not SOURCE_CHANNEL_CONFIGS:
     logger.critical(
         "FATAL ERROR: No valid source channel configurations found in .env (e.g., TELETHON_ACCOUNT_1_SOURCE_CHANNEL_1). At least one source channel is required. Exiting."
     )
-    raise BotFatalError(
-        "No valid source channel configurations found."
-    )  # Raise custom error
+    raise BotFatalError("No valid source channel configurations found.")
 
 session_file_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "sessions", "TELETHON_ACCOUNT_1_session"
@@ -211,43 +178,36 @@ async def main():
         logger.info("Connecting Telethon client...")
         await client.start(phone=PHONE_NUMBER)
         logger.info("Telethon client started successfully.")
-        # Send startup notification AFTER client is connected
         await notify_telegram(client, f"🚀 {BOT_TITLE} started successfully!")
     except SessionPasswordNeededError:
         logger.critical(
             "FATAL ERROR: Two-factor authentication (2FA) is enabled for your account. Please run the script manually once to log in and enter your 2FA password. The script will then save the session, and subsequent runs should work automatically. Exiting."
         )
-        raise BotFatalError("2FA enabled, manual login required.")  # Raise custom error
+        raise BotFatalError("2FA enabled, manual login required.")
     except AuthKeyError as e:
         logger.critical(
             f"FATAL ERROR: Authentication failed. Please check your API ID, API Hash, and Phone Number in .env. If you recently revoked your session, you might need to delete the 'sessions' folder and try again. Error: {e}. Exiting.",
             exc_info=True,
         )
-        raise BotFatalError(f"Authentication failed: {e}")  # Raise custom error
+        raise BotFatalError(f"Authentication failed: {e}")
     except RPCError as e:
         logger.critical(
             f"FATAL ERROR: A Telegram RPC error occurred during client startup: {e}. Exiting.",
             exc_info=True,
         )
-        raise BotFatalError(
-            f"Telegram RPC error during startup: {e}"
-        )  # Raise custom error
+        raise BotFatalError(f"Telegram RPC error during startup: {e}")
     except Exception as e:
         logger.critical(
             f"FATAL ERROR: An unexpected error occurred during client startup: {e}. Exiting.",
             exc_info=True,
         )
-        raise BotFatalError(
-            f"Unexpected error during client startup: {e}"
-        )  # Raise custom error
+        raise BotFatalError(f"Unexpected error during client startup: {e}")
 
     if not await client.is_user_authorized():
         logger.critical(
             "FATAL ERROR: Telethon client is not authorized. Please run the script manually once to complete the login process (enter phone number, code, and 2FA if applicable). Exiting."
         )
-        raise BotFatalError(
-            "Telethon client not authorized, manual login required."
-        )  # Raise custom error
+        raise BotFatalError("Telethon client not authorized, manual login required.")
 
     target_channel_entity = None
     target_identifier = TARGET_CHANNEL_CONFIG.get("id") or TARGET_CHANNEL_CONFIG.get(
@@ -279,24 +239,20 @@ async def main():
             logger.critical(
                 f"FATAL ERROR: The invite hash '{invite_hash}' for target channel '{target_channel_name_for_logs}' has expired or is invalid. Exiting."
             )
-            raise BotFatalError(
-                f"Target channel invite hash expired: {invite_hash}"
-            )  # Raise custom error
+            raise BotFatalError(f"Target channel invite hash expired: {invite_hash}")
         except ChatIdInvalidError:
             logger.critical(
                 f"FATAL ERROR: The invite hash '{invite_hash}' for target channel '{target_channel_name_for_logs}' corresponds to an invalid chat ID. Exiting."
             )
             raise BotFatalError(
                 f"Target channel invite hash invalid chat ID: {invite_hash}"
-            )  # Raise custom error
+            )
         except Exception as e:
             logger.critical(
                 f"FATAL ERROR: An unexpected error occurred while attempting to join target channel '{target_channel_name_for_logs}' with invite hash '{invite_hash}': {e}. Exiting.",
                 exc_info=True,
             )
-            raise BotFatalError(
-                f"Error joining target channel with invite hash: {e}"
-            )  # Raise custom error
+            raise BotFatalError(f"Error joining target channel with invite hash: {e}")
     elif (
         TARGET_CHANNEL_CONFIG.get("type") == "private"
         and not TARGET_CHANNEL_CONFIG.get("invite_hash")
@@ -321,22 +277,18 @@ async def main():
         )
         raise BotFatalError(
             f"Target channel is private and inaccessible: {target_identifier}"
-        )  # Raise custom error
+        )
     except UserNotParticipantError:
         logger.critical(
             f"FATAL ERROR: Your account is not a participant in target channel '{target_channel_name_for_logs}' (ID: {target_identifier}). Please join it first or provide a valid invite_hash if it's private. Exiting."
         )
-        raise BotFatalError(
-            f"Not a participant in target channel: {target_identifier}"
-        )  # Raise custom error
+        raise BotFatalError(f"Not a participant in target channel: {target_identifier}")
     except Exception as e:
         logger.critical(
             f"FATAL ERROR: Could not resolve target channel '{target_channel_name_for_logs}' (ID: {target_identifier}). Please check the username/ID and ensure your account can access it: {e}",
             exc_info=True,
         )
-        raise BotFatalError(
-            f"Could not resolve target channel: {e}"
-        )  # Raise custom error
+        raise BotFatalError(f"Could not resolve target channel: {e}")
 
     source_channel_entities = []
     for source_config in SOURCE_CHANNEL_CONFIGS:
@@ -414,9 +366,10 @@ async def main():
         logger.critical(
             "FATAL ERROR: No valid source channels could be resolved. The bot has nothing to forward from. Exiting."
         )
-        raise BotFatalError(
-            "No valid source channels could be resolved."
-        )  # Raise custom error
+        raise BotFatalError("No valid source channels could be resolved.")
+
+    # Attach the target channel entity to the config for easy access in the handler.
+    TARGET_CHANNEL_CONFIG["entity"] = target_channel_entity
 
     @client.on(
         events.NewMessage(
@@ -448,8 +401,7 @@ async def main():
             return
 
         source_title = source_channel_config.get("title", "Unknown Channel")
-        target_config = TARGET_CHANNEL_CONFIG
-        target_channel_entity = target_config["entity"]
+        target_channel_entity = TARGET_CHANNEL_CONFIG["entity"]
 
         try:
             # Check for the protected_forwarding flag from the source channel config
@@ -459,21 +411,14 @@ async def main():
                 logger.info(
                     f"New message detected in protected source channel '{source_title}' (ID: {event.chat_id}). Attempting to send a copy..."
                 )
-
                 await client.send_message(
                     target_channel_entity,
-                    # message content
                     message=event.message.message,
-                    # Media, e.g., photos, videos, files
                     file=event.message.media,
-                    # Optional: disable link previews to replicate the original message's appearance
                     link_preview=False,
-                    # Replicate message formatting (bold, italics, etc.)
                     formatting=event.message.entities,
-                    # Preserve reply information if it's a reply to another message
                     reply_to=event.message.reply_to_msg_id,
                 )
-
             else:
                 logger.info(
                     f"New message detected in source channel '{source_title}' (ID: {event.chat_id}). Attempting to forward..."
@@ -490,34 +435,6 @@ async def main():
                 exc_info=True,
             )
 
-    async def handler(event):
-        # Removed message filtering conditions to forward all messages
-        # if event.fwd_from or event.via_bot_id or (event.is_channel and not event.post_author):
-        #     logger.info(f"Ignoring forwarded/bot/service message from {event.chat_id}.")
-        #     return
-
-        # if not (event.text or event.photo or event.document):
-        #     logger.info(f"Ignoring non-text/photo/document message from {event.chat_id}.")
-        #     return
-
-        try:
-            logger.info(
-                f"New message detected in source channel '{event.chat.title}' (ID: {event.chat_id}). Attempting to forward..."
-            )
-            await event.forward_to(target_channel_entity)  # Original forwarding method
-            logger.info(
-                f"Message from '{event.chat.title}' successfully forwarded to '{target_channel_entity.title}'."
-            )
-            # Removed notification for successful forwarding
-            # await notify_telegram(client, f"New message forwarded from '{event.chat.title}' to '{target_channel_entity.title}'.")
-        except Exception as e:
-            logger.error(
-                f"Failed to forward message from '{event.chat.title}' to '{target_channel_entity.title}': {e}",
-                exc_info=True,
-            )
-            # Removed notification for forwarding error
-            # await notify_telegram(client, f"Error forwarding message: {e}")
-
     logger.info(
         "Bot is now listening for new messages in configured source channels..."
     )
@@ -525,35 +442,25 @@ async def main():
         f"Forwarding messages to: '{target_channel_entity.title}' (ID: {target_channel_entity.id})"
     )
 
-    # Removed time-based exit loop, bot will run continuously
     await client.run_until_disconnected()
 
 
 if __name__ == "__main__":
-    # This ensures a single event loop is managed for the entire script execution.
-    # The try-except-finally block handles bot startup, runtime, and graceful shutdown/error handling.
     try:
         asyncio.run(main())
     except BotFatalError as e:
         logger.critical(
             f"Bot stopped due to a fatal configuration or startup error: {e}"
         )
-        # No need to call sys.exit(1) here, as raising BotFatalError and catching it
-        # allows the program to exit naturally after logging.
     except Exception as e:
         logger.critical(
             f"CRITICAL APPLICATION ERROR: Telethon bot encountered an unhandled exception during main execution: {e}",
             exc_info=True,
         )
     finally:
-        # This finally block runs whether main() completes, raises BotFatalError, or another Exception.
-        # It ensures cleanup and shutdown notification are attempted.
         if client and client.is_connected():
             logger.info("Final cleanup: Disconnecting Telethon client.")
             try:
-                # Ensure these are awaited within a running loop.
-                # If the loop from asyncio.run(main()) is still active, they will run.
-                # If not, and a new loop is needed, asyncio.run() will handle it.
                 asyncio.run(notify_telegram(client, f"🛑 {BOT_TITLE} has stopped."))
                 asyncio.run(client.disconnect())
             except RuntimeError as e:
