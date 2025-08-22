@@ -418,12 +418,78 @@ async def main():
             "No valid source channels could be resolved."
         )  # Raise custom error
 
-    # FIX: Use .get() for safe dictionary access to avoid KeyError if 'username' is not present
     @client.on(
         events.NewMessage(
             chats=[s.get("username") or s.get("id") for s in SOURCE_CHANNEL_CONFIGS]
         )
     )
+    async def handler(event):
+        # Gracefully handle events with no chat object.
+        if not event.chat:
+            logger.warning(
+                "Received a message event with no associated chat object. Skipping."
+            )
+            return
+
+        source_channel_config = next(
+            (
+                c
+                for c in SOURCE_CHANNEL_CONFIGS
+                if str(c.get("id")) == str(event.chat_id)
+                or c.get("username") == event.chat.username
+            ),
+            None,
+        )
+
+        if not source_channel_config:
+            logger.warning(
+                f"Could not find configuration for source channel {event.chat_id}. Skipping."
+            )
+            return
+
+        source_title = source_channel_config.get("title", "Unknown Channel")
+        target_config = TARGET_CHANNEL_CONFIG
+        target_channel_entity = target_config["entity"]
+
+        try:
+            # Check for the protected_forwarding flag from the source channel config
+            is_protected = source_channel_config.get("protected_forwarding", False)
+
+            if is_protected:
+                logger.info(
+                    f"New message detected in protected source channel '{source_title}' (ID: {event.chat_id}). Attempting to send a copy..."
+                )
+
+                await client.send_message(
+                    target_channel_entity,
+                    # message content
+                    message=event.message.message,
+                    # Media, e.g., photos, videos, files
+                    file=event.message.media,
+                    # Optional: disable link previews to replicate the original message's appearance
+                    link_preview=False,
+                    # Replicate message formatting (bold, italics, etc.)
+                    formatting=event.message.entities,
+                    # Preserve reply information if it's a reply to another message
+                    reply_to=event.message.reply_to_msg_id,
+                )
+
+            else:
+                logger.info(
+                    f"New message detected in source channel '{source_title}' (ID: {event.chat_id}). Attempting to forward..."
+                )
+                await event.forward_to(target_channel_entity)
+
+            logger.info(
+                f"Message from '{source_title}' successfully handled and sent to '{target_channel_entity.title}'."
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to process message from '{source_title}' to '{target_channel_entity.title}': {e}",
+                exc_info=True,
+            )
+
     async def handler(event):
         # Removed message filtering conditions to forward all messages
         # if event.fwd_from or event.via_bot_id or (event.is_channel and not event.post_author):
