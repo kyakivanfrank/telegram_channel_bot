@@ -2,20 +2,20 @@
 __pycache__/
 *.pyc
 *.log
-# .env
+.env
 # Virtual environment
 venv/
 .venv/
 
 
 # # Telethon session files
-# sessions/
-# *.session
-# *.session-journal
-# *.sqlite # Telethon sessions can sometimes use .sqlite extension
+sessions/
+*.session
+*.session-journal
+*.sqlite # Telethon sessions can sometimes use .sqlite extension
 
 # Configuration files (containing sensitive data - DO NOT UPLOAD TO PUBLIC REPOS)
-# .env # Add this line to ignore your local .env file
+.env # Add this line to ignore your local .env file
 
 # Replit specific files (optional, but generally good to ignore if not part of your core repo)
 try.py
