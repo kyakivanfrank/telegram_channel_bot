@@ -2,11 +2,13 @@
 __pycache__/
 *.pyc
 *.log
+.env
 # Virtual environment
 venv/
 .venv/
 
-# Telethon session files
+
+# # Telethon session files
 sessions/
 *.session
 *.session-journal
